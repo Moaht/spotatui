@@ -735,6 +735,8 @@ pub struct App {
   /// Native playback state - updated by player events, used when streaming is active
   /// This is more reliable than current_playback_context.is_playing during native streaming
   pub native_is_playing: Option<bool>,
+  /// Prevent idle/sleep during playback
+  pub keepawake: Option<keepawake::KeepAwake>,
   /// Timestamp of the last native device activation
   #[allow(dead_code)]
   pub last_device_activation: Option<Instant>,
@@ -958,6 +960,7 @@ impl Default for App {
       is_streaming_active: false,
       native_device_id: None,
       native_is_playing: None,
+      keepawake: None,
       last_device_activation: None,
       native_activation_pending: false,
       // Sort menu defaults
@@ -1392,6 +1395,23 @@ impl App {
     }
 
     self.poll_current_playback();
+    let playing_now = self
+        .native_is_playing
+        .or_else(|| self.current_playback_context.as_ref().map(|c| c.is_playing))
+        .unwrap_or(false);
+    match (playing_now, self.keepawake.is_some()) {
+      (true, false) => {
+        self.keepawake = keepawake::Builder::default()
+          .idle(true)
+          .sleep(true)
+          .reason("Playing music")
+          .app_name("spotatui")
+          .create()
+          .ok();
+      }
+      (false, true) => self.keepawake = None,
+      _ => {}
+    }
 
     if let Some(CurrentPlaybackContext {
       item: Some(item),
