@@ -1395,7 +1395,8 @@ impl App {
     }
 
     self.poll_current_playback();
-    let playing_now = self
+    let playing_now = self.user_config.behavior.keepawake_enabled
+      && self
         .native_is_playing
         .or_else(|| self.current_playback_context.as_ref().map(|c| c.is_playing))
         .unwrap_or(false);
@@ -2982,6 +2983,12 @@ impl App {
           value: SettingValue::Bool(self.user_config.behavior.stop_after_current_track),
         },
         SettingItem {
+          id: "behavior.keepawake_enabled".to_string(),
+          name: "Keep System Awake".to_string(),
+          description: "Prevent the system from sleeping while music is playing".to_string(),
+          value: SettingValue::Bool(self.user_config.behavior.keepawake_enabled),
+        },
+        SettingItem {
           id: "behavior.startup_behavior".to_string(),
           name: "Startup Behavior".to_string(),
           description: "Playback state when spotatui starts: continue, play, or pause".to_string(),
@@ -3417,6 +3424,11 @@ impl App {
           if let SettingValue::Cycle(v, _) = &setting.value {
             self.user_config.behavior.startup_behavior =
               crate::core::user_config::StartupBehavior::from_name(v);
+          }
+        }
+        "behavior.keepawake_enabled" => {
+          if let SettingValue::Bool(v) = &setting.value {
+            self.user_config.behavior.keepawake_enabled = *v;
           }
         }
         "behavior.enable_announcements" => {
